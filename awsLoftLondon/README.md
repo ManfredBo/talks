@@ -1,114 +1,612 @@
-# AWS Pop-up Loft Workshop
-# Designing and managing scalable APIs with AWS and 3scale
-
-This workshop is jointly delivered between Amazon Web Services (AWS) and the AWS Advanced Technology partner 3scale API Management Platform. Together we provide a full complement API program management solution that integrates 3scale with the Amazon API Gateway and Lambda.
-
-The workshop is held at the AWS Pop-up Loft London on April 25th, 9:00AM - 1:00PM. The workshop description can be found [here](https://awsloft.london/session/2016/fd3f2e85-b292-44cd-867d-2c0528cbd741).
-
-This part of the tutorial focuses on how the [integration](https://www.3scale.net/amazon-gateway-integration/) between 3scale, Amazon API Gateway and Lambda can be achieved practically.
-
-## Table of Contents
-
-* Intro to [3scale](https://www.3scale.net/) API Management
-* Goals of this tutorial 
-* Prerequisites for this tutorial
-* Setting up the Amazon Virtual Private Cloud (VPC)
-* Setting up Elasticache
-* Creating the Lambda code
-* Intro to the Amazon API Gateway [custom authorizer](http://docs.aws.amazon.com/apigateway/latest/developerguide/use-custom-authorizer.html#api-gateway-custom-authorization-overview) principles
-* Create and deploy the 3scale-specific custom authorizer
-
-## Intro to 3scale API Management
-3scale makes it easy to open, secure, manage, distribute, control, and monetize your APIs. Built with performance, customer control and excellent time-to-value in mind, no other solution gives API providers so much power, ease, flexibility and scalability in such a cost effective way. Check it out at https://www.3scale.net
-
-3scale’s API Management Platform also supports the unique requirements of delivering APIs on the Amazon Web Services (AWS) infrastructure stack -- fexibly, at scale and with great RoI. API providers on AWS don’t have to switch solutions to get Amazon API gateway features like distributed denial-of-service (DDoS) attack protection, caching and logging. Plus, adding 3scale provides rich, sophisticated API management business operations for fine-grained API control and visibility, as well as features for API adoption and promotion. Check out the details about this [integrated solution](https://www.3scale.net/amazon-gateway-integration/).
-
-## Goals of this tutorial 
-You've seen the importance of API management when you are developing and exposing APIs. In this tutorial we will show how to add an API management layer to your existing API. This existing API has been deployed using the Amazon API Gateway and Lambda.
-
-For this tutorial you will use:
-
-* Amazon API Gateway: for basic API traffic management
-* AWS Lambda: for implementing the logic behind your API
-* Elasticache: for caching API keys and improving performance
-* VPC: for connecting AWS Lambda with Elasticache
-* Serverless framework: for making configuration and deployment to Lambda a lot easier
-* 3scale API management platform for API contracts on tiered application plans, monetization, and developer portals with interactive API documentation
-
-Here is a diagram describing the integration.
-`TODO: use our standard diagram and describe api call flow`
-
-And another one more specific to 3scale plugin showcase connection to elastic search, emphasize VPC.
-`TODO: What goes here ??`
-
-##Prerequisites for this tutorial
-* 3scale account -- sign up at [3scale.net](https://www.3scale.net/) `TODO: add specific signup URL landing page`
-* AWS account -- sign up at http://aws.amazon.com
-* AWS command line interface (CLI) installed locally -- ([Instructions](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html))
-* Node.js environment installed locally -- ([Instructions](https://docs.npmjs.com/getting-started/installing-node))
-* Serverless framework installed locally -- ([Instructions](https://github.com/serverless/serverless)) 
 
 
 
 
+<!DOCTYPE html>
+<html lang="en" class="">
+  <head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# object: http://ogp.me/ns/object# article: http://ogp.me/ns/article# profile: http://ogp.me/ns/profile#">
+    <meta charset='utf-8'>
 
-##Setting up the Amazon Virtual Private Cloud (VPC)
-To reduce latency and have an API stack that is capable of handling the load of thousands of requests, we will use [Amazon Elasticache](https://aws.amazon.com/elasticache/). There we will store API keys that were authorized to make request to the API. This will help reducing the number of calls to the main 3scale platform and consequently improve the overall API stack performance.
+    <link crossorigin="anonymous" href="https://assets-cdn.github.com/assets/frameworks-a8e140e742fc1642934002bc102ca30dbf176401b84e17ed74032d7de79de874.css" media="all" rel="stylesheet" />
+    <link crossorigin="anonymous" href="https://assets-cdn.github.com/assets/github-81d36a9e9c31e7e3e34bc0b803b93e79bef7f4a1af4b01dca7e63888969e3404.css" media="all" rel="stylesheet" />
+    
+    
+    <link crossorigin="anonymous" href="https://assets-cdn.github.com/assets/site-2d5d1699983d8dd7c384c67dfc183fbace8e3a24866e8822069d599f68e71fb2.css" media="all" rel="stylesheet" />
+    
 
-Elasticache is only available through VPC. To be able to call Elasticache into Lambda, the Lambda function has to be on the same VPC.
+    <link as="script" href="https://assets-cdn.github.com/assets/frameworks-d5718785472b2052449a0eddf71fd732bfe0f81a8b3f28b953568f88c36eedb3.js" rel="preload" />
+    
+    <link as="script" href="https://assets-cdn.github.com/assets/github-d6ea8d8c3265ef5d9ec0150d796895d45f8e83b8585a3a180c1e6481078b0c62.js" rel="preload" />
 
-Our Lambda will make calls to 3scale service, which is outside of the VPC. We will now configure the VPC to make sure it can connect to the internet, outside of VPC.
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Language" content="en">
+    <meta name="viewport" content="width=1020">
+    
+    
+    <title>talks/README.md at master · picsoung/talks · GitHub</title>
+    <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
+    <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <meta property="fb:app_id" content="1401488693436528">
 
-If don't have a VPC, let's create one. You can also use the default one.
+      <meta content="https://avatars2.githubusercontent.com/u/172072?v=3&amp;s=400" name="twitter:image:src" /><meta content="@github" name="twitter:site" /><meta content="summary" name="twitter:card" /><meta content="picsoung/talks" name="twitter:title" /><meta content="slides from my different talks" name="twitter:description" />
+      <meta content="https://avatars2.githubusercontent.com/u/172072?v=3&amp;s=400" property="og:image" /><meta content="GitHub" property="og:site_name" /><meta content="object" property="og:type" /><meta content="picsoung/talks" property="og:title" /><meta content="https://github.com/picsoung/talks" property="og:url" /><meta content="slides from my different talks" property="og:description" />
+      <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
+    <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
+    <link rel="assets" href="https://assets-cdn.github.com/">
+    
+    <meta name="pjax-timeout" content="1000">
+    
 
-You should create a NAT gateway and an Internet gateway.
+    <meta name="msapplication-TileImage" content="/windows-tile.png">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="selected-link" value="repo_source" data-pjax-transient>
+
+    <meta name="google-site-verification" content="KT5gs8h0wvaagLKAVWq8bbeNwnZZK1r1XQysX3xurLU">
+<meta name="google-site-verification" content="ZzhVyEFwb7w3e0-uOTltm8Jsck2F5StVihD0exw2fsA">
+    <meta name="google-analytics" content="UA-3769691-2">
+
+<meta content="collector.githubapp.com" name="octolytics-host" /><meta content="github" name="octolytics-app-id" /><meta content="3405D62B:4DBE:20B6341D:57175DF3" name="octolytics-dimension-request_id" />
+<meta content="/&lt;user-name&gt;/&lt;repo-name&gt;/blob/show" data-pjax-transient="true" name="analytics-location" />
+
+
+
+  <meta class="js-ga-set" name="dimension1" content="Logged Out">
+
+
+
+        <meta name="hostname" content="github.com">
+    <meta name="user-login" content="">
+
+        <meta name="expected-hostname" content="github.com">
+      <meta name="js-proxy-site-detection-payload" content="ODVlNWJmZDY3NDU4ZTZlNzRjOWIxNDdjNzEwYTZmZmI4NWFkYjM3MmJjNjdkYzgxMWI4MjBhMzYwMDdjZjgyMHx7InJlbW90ZV9hZGRyZXNzIjoiNTIuNS4yMTQuNDMiLCJyZXF1ZXN0X2lkIjoiMzQwNUQ2MkI6NERCRToyMEI2MzQxRDo1NzE3NURGMyIsInRpbWVzdGFtcCI6MTQ2MTE0OTE3MX0=">
+
+
+      <link rel="mask-icon" href="https://assets-cdn.github.com/pinned-octocat.svg" color="#4078c0">
+      <link rel="icon" type="image/x-icon" href="https://assets-cdn.github.com/favicon.ico">
+
+    <meta content="516c5bf63e8f99f0bb9b4217124a705214a38da0" name="form-nonce" />
+
+    <meta http-equiv="x-pjax-version" content="47e489512b8f06baefbe1451a2ac6a42">
+    
+
+      
+  <meta name="description" content="slides from my different talks">
+  <meta name="go-import" content="github.com/picsoung/talks git https://github.com/picsoung/talks.git">
+
+  <meta content="172072" name="octolytics-dimension-user_id" /><meta content="picsoung" name="octolytics-dimension-user_login" /><meta content="25551536" name="octolytics-dimension-repository_id" /><meta content="picsoung/talks" name="octolytics-dimension-repository_nwo" /><meta content="true" name="octolytics-dimension-repository_public" /><meta content="false" name="octolytics-dimension-repository_is_fork" /><meta content="25551536" name="octolytics-dimension-repository_network_root_id" /><meta content="picsoung/talks" name="octolytics-dimension-repository_network_root_nwo" />
+  <link href="https://github.com/picsoung/talks/commits/master.atom" rel="alternate" title="Recent Commits to talks:master" type="application/atom+xml">
+
+
+      <link rel="canonical" href="https://github.com/picsoung/talks/blob/master/awsLoftLondon/README.md" data-pjax-transient>
+  </head>
+
+
+  <body class="logged-out   env-production  vis-public page-blob">
+    <div id="js-pjax-loader-bar" class="pjax-loader-bar"></div>
+    <a href="#start-of-content" tabindex="1" class="accessibility-aid js-skip-to-content">Skip to content</a>
+
+    
+    
+    
+
+
+
+          <header class="site-header js-details-container" role="banner">
+  <div class="container-responsive">
+    <a class="header-logo-invertocat" href="https://github.com/" aria-label="Homepage" data-ga-click="(Logged out) Header, go to homepage, icon:logo-wordmark">
+      <svg aria-hidden="true" class="octicon octicon-mark-github" height="32" version="1.1" viewBox="0 0 16 16" width="32"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59 0.4 0.07 0.55-0.17 0.55-0.38 0-0.19-0.01-0.82-0.01-1.49-2.01 0.37-2.53-0.49-2.69-0.94-0.09-0.23-0.48-0.94-0.82-1.13-0.28-0.15-0.68-0.52-0.01-0.53 0.63-0.01 1.08 0.58 1.23 0.82 0.72 1.21 1.87 0.87 2.33 0.66 0.07-0.52 0.28-0.87 0.51-1.07-1.78-0.2-3.64-0.89-3.64-3.95 0-0.87 0.31-1.59 0.82-2.15-0.08-0.2-0.36-1.02 0.08-2.12 0 0 0.67-0.21 2.2 0.82 0.64-0.18 1.32-0.27 2-0.27 0.68 0 1.36 0.09 2 0.27 1.53-1.04 2.2-0.82 2.2-0.82 0.44 1.1 0.16 1.92 0.08 2.12 0.51 0.56 0.82 1.27 0.82 2.15 0 3.07-1.87 3.75-3.65 3.95 0.29 0.25 0.54 0.73 0.54 1.48 0 1.07-0.01 1.93-0.01 2.2 0 0.21 0.15 0.46 0.55 0.38C13.71 14.53 16 11.53 16 8 16 3.58 12.42 0 8 0z"></path></svg>
+    </a>
+
+    <button class="btn-link right site-header-toggle js-details-target" type="button" aria-label="Toggle navigation">
+      <svg aria-hidden="true" class="octicon octicon-three-bars" height="24" version="1.1" viewBox="0 0 12 16" width="18"><path d="M11.41 9H0.59c-0.59 0-0.59-0.41-0.59-1s0-1 0.59-1h10.81c0.59 0 0.59 0.41 0.59 1s0 1-0.59 1z m0-4H0.59c-0.59 0-0.59-0.41-0.59-1s0-1 0.59-1h10.81c0.59 0 0.59 0.41 0.59 1s0 1-0.59 1zM0.59 11h10.81c0.59 0 0.59 0.41 0.59 1s0 1-0.59 1H0.59c-0.59 0-0.59-0.41-0.59-1s0-1 0.59-1z"></path></svg>
+    </button>
+
+    <div class="site-header-menu">
+      <nav class="site-header-nav site-header-nav-main">
+        <a href="/personal" class="js-selected-navigation-item nav-item nav-item-personal" data-ga-click="Header, click, Nav menu - item:personal" data-selected-links="/personal /personal">
+          Personal
+</a>        <a href="/open-source" class="js-selected-navigation-item nav-item nav-item-opensource" data-ga-click="Header, click, Nav menu - item:opensource" data-selected-links="/open-source /open-source">
+          Open source
+</a>        <a href="/business" class="js-selected-navigation-item nav-item nav-item-business" data-ga-click="Header, click, Nav menu - item:business" data-selected-links="/business /business/features /business/customers /business">
+          Business
+</a>        <a href="/explore" class="js-selected-navigation-item nav-item nav-item-explore" data-ga-click="Header, click, Nav menu - item:explore" data-selected-links="/explore /trending /trending/developers /integrations /integrations/feature/code /integrations/feature/collaborate /integrations/feature/ship /explore">
+          Explore
+</a>      </nav>
+
+      <div class="site-header-actions">
+            <a class="btn btn-primary site-header-actions-btn" href="/join?source=header-repo" data-ga-click="(Logged out) Header, clicked Sign up, text:sign-up">Sign up</a>
+          <a class="btn site-header-actions-btn mr-2" href="/login?return_to=%2Fpicsoung%2Ftalks%2Fblob%2Fmaster%2FawsLoftLondon%2FREADME.md" data-ga-click="(Logged out) Header, clicked Sign in, text:sign-in">Sign in</a>
+      </div>
+
+        <nav class="site-header-nav site-header-nav-secondary">
+          <a class="nav-item" href="/pricing">Pricing</a>
+          <a class="nav-item" href="/blog">Blog</a>
+          <a class="nav-item" href="https://help.github.com">Support</a>
+          <a class="nav-item header-search-link" href="https://github.com/search">Search GitHub</a>
+              <div class="header-search scoped-search site-scoped-search js-site-search" role="search">
+  <!-- </textarea> --><!-- '"` --><form accept-charset="UTF-8" action="/picsoung/talks/search" class="js-site-search-form" data-scoped-search-url="/picsoung/talks/search" data-unscoped-search-url="/search" method="get"><div style="margin:0;padding:0;display:inline"><input name="utf8" type="hidden" value="&#x2713;" /></div>
+    <label class="form-control header-search-wrapper js-chromeless-input-container">
+      <div class="header-search-scope">This repository</div>
+      <input type="text"
+        class="form-control header-search-input js-site-search-focus js-site-search-field is-clearable"
+        data-hotkey="s"
+        name="q"
+        placeholder="Search"
+        aria-label="Search this repository"
+        data-unscoped-placeholder="Search GitHub"
+        data-scoped-placeholder="Search"
+        tabindex="1"
+        autocapitalize="off">
+    </label>
+</form></div>
+
+        </nav>
+    </div>
+  </div>
+</header>
+
+
+
+    <div id="start-of-content" class="accessibility-aid"></div>
+
+      <div id="js-flash-container">
+</div>
+
+
+    <div role="main" class="main-content">
+        <div itemscope itemtype="http://schema.org/SoftwareSourceCode">
+    <div id="js-repo-pjax-container" data-pjax-container>
+      
+<div class="pagehead repohead instapaper_ignore readability-menu experiment-repo-nav">
+  <div class="container repohead-details-container">
+
+    
+
+<ul class="pagehead-actions">
+
+  <li>
+      <a href="/login?return_to=%2Fpicsoung%2Ftalks"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to watch a repository" rel="nofollow">
+    <svg aria-hidden="true" class="octicon octicon-eye" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6c4.94 0 7.94-6 7.94-6S13 2 8.06 2z m-0.06 10c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4z m2-4c0 1.11-0.89 2-2 2s-2-0.89-2-2 0.89-2 2-2 2 0.89 2 2z"></path></svg>
+    Watch
+  </a>
+  <a class="social-count" href="/picsoung/talks/watchers">
+    2
+  </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2Fpicsoung%2Ftalks"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to star a repository" rel="nofollow">
+    <svg aria-hidden="true" class="octicon octicon-star" height="16" version="1.1" viewBox="0 0 14 16" width="14"><path d="M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z"></path></svg>
+    Star
+  </a>
+
+    <a class="social-count js-social-count" href="/picsoung/talks/stargazers">
+      2
+    </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2Fpicsoung%2Ftalks"
+        class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+        aria-label="You must be signed in to fork a repository" rel="nofollow">
+        <svg aria-hidden="true" class="octicon octicon-repo-forked" height="16" version="1.1" viewBox="0 0 10 16" width="10"><path d="M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z"></path></svg>
+        Fork
+      </a>
+
+    <a href="/picsoung/talks/network" class="social-count">
+      1
+    </a>
+  </li>
+</ul>
+
+    <h1 class="entry-title public ">
+  <svg aria-hidden="true" class="octicon octicon-repo" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M4 9h-1v-1h1v1z m0-3h-1v1h1v-1z m0-2h-1v1h1v-1z m0-2h-1v1h1v-1z m8-1v12c0 0.55-0.45 1-1 1H6v2l-1.5-1.5-1.5 1.5V14H1c-0.55 0-1-0.45-1-1V1C0 0.45 0.45 0 1 0h10c0.55 0 1 0.45 1 1z m-1 10H1v2h2v-1h3v1h5V11z m0-10H2v9h9V1z"></path></svg>
+  <span class="author" itemprop="author"><a href="/picsoung" class="url fn" rel="author">picsoung</a></span><!--
+--><span class="path-divider">/</span><!--
+--><strong itemprop="name"><a href="/picsoung/talks" data-pjax="#js-repo-pjax-container">talks</a></strong>
+
+</h1>
+
+  </div>
+  <div class="container">
+    
+<nav class="reponav js-repo-nav js-sidenav-container-pjax"
+     itemscope
+     itemtype="http://schema.org/BreadcrumbList"
+     role="navigation"
+     data-pjax="#js-repo-pjax-container">
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a href="/picsoung/talks" aria-selected="true" class="js-selected-navigation-item selected reponav-item" data-hotkey="g c" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches /picsoung/talks" itemprop="url">
+      <svg aria-hidden="true" class="octicon octicon-code" height="16" version="1.1" viewBox="0 0 14 16" width="14"><path d="M9.5 3l-1.5 1.5 3.5 3.5L8 11.5l1.5 1.5 4.5-5L9.5 3zM4.5 3L0 8l4.5 5 1.5-1.5L2.5 8l3.5-3.5L4.5 3z"></path></svg>
+      <span itemprop="name">Code</span>
+      <meta itemprop="position" content="1">
+</a>  </span>
+
+    <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+      <a href="/picsoung/talks/issues" class="js-selected-navigation-item reponav-item" data-hotkey="g i" data-selected-links="repo_issues repo_labels repo_milestones /picsoung/talks/issues" itemprop="url">
+        <svg aria-hidden="true" class="octicon octicon-issue-opened" height="16" version="1.1" viewBox="0 0 14 16" width="14"><path d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7S10.14 13.7 7 13.7 1.3 11.14 1.3 8s2.56-5.7 5.7-5.7m0-1.3C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7S10.86 1 7 1z m1 3H6v5h2V4z m0 6H6v2h2V10z"></path></svg>
+        <span itemprop="name">Issues</span>
+        <span class="counter">0</span>
+        <meta itemprop="position" content="2">
+</a>    </span>
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a href="/picsoung/talks/pulls" class="js-selected-navigation-item reponav-item" data-hotkey="g p" data-selected-links="repo_pulls /picsoung/talks/pulls" itemprop="url">
+      <svg aria-hidden="true" class="octicon octicon-git-pull-request" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M11 11.28c0-1.73 0-6.28 0-6.28-0.03-0.78-0.34-1.47-0.94-2.06s-1.28-0.91-2.06-0.94c0 0-1.02 0-1 0V0L4 3l3 3V4h1c0.27 0.02 0.48 0.11 0.69 0.31s0.3 0.42 0.31 0.69v6.28c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72z m-1 2.92c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2zM4 3c0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72 0 1.55 0 5.56 0 6.56-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V4.72c0.59-0.34 1-0.98 1-1.72z m-0.8 10c0 0.66-0.55 1.2-1.2 1.2s-1.2-0.55-1.2-1.2 0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2z m-1.2-8.8c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z"></path></svg>
+      <span itemprop="name">Pull requests</span>
+      <span class="counter">0</span>
+      <meta itemprop="position" content="3">
+</a>  </span>
+
+
+
+  <a href="/picsoung/talks/pulse" class="js-selected-navigation-item reponav-item" data-selected-links="pulse /picsoung/talks/pulse">
+    <svg aria-hidden="true" class="octicon octicon-pulse" height="16" version="1.1" viewBox="0 0 14 16" width="14"><path d="M11.5 8L8.8 5.4 6.6 8.5 5.5 1.6 2.38 8H0V10h3.6L4.5 8.2l0.9 5.4L9 8.5l1.6 1.5H14V8H11.5z"></path></svg>
+    Pulse
+</a>
+  <a href="/picsoung/talks/graphs" class="js-selected-navigation-item reponav-item" data-selected-links="repo_graphs repo_contributors /picsoung/talks/graphs">
+    <svg aria-hidden="true" class="octicon octicon-graph" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M16 14v1H0V0h1v14h15z m-11-1H3V8h2v5z m4 0H7V3h2v10z m4 0H11V6h2v7z"></path></svg>
+    Graphs
+</a>
+
+</nav>
+
+  </div>
+</div>
+
+<div class="container new-discussion-timeline experiment-repo-nav">
+  <div class="repository-content">
+
+    
+
+<a href="/picsoung/talks/blob/6e4c9383503a9f04280db794b53ad308c60aac2f/awsLoftLondon/README.md" class="hidden js-permalink-shortcut" data-hotkey="y">Permalink</a>
+
+<!-- blob contrib key: blob_contributors:v21:485c5b77e213627ab0feeed1746ed53b -->
+
+<div class="file-navigation js-zeroclipboard-container">
+  
+<div class="select-menu branch-select-menu js-menu-container js-select-menu left">
+  <button class="btn btn-sm select-menu-button js-menu-target css-truncate" data-hotkey="w"
+    title="master"
+    type="button" aria-label="Switch branches or tags" tabindex="0" aria-haspopup="true">
+    <i>Branch:</i>
+    <span class="js-select-button css-truncate-target">master</span>
+  </button>
+
+  <div class="select-menu-modal-holder js-menu-content js-navigation-container" data-pjax aria-hidden="true">
+
+    <div class="select-menu-modal">
+      <div class="select-menu-header">
+        <svg aria-label="Close" class="octicon octicon-x js-menu-close" height="16" role="img" version="1.1" viewBox="0 0 12 16" width="12"><path d="M7.48 8l3.75 3.75-1.48 1.48-3.75-3.75-3.75 3.75-1.48-1.48 3.75-3.75L0.77 4.25l1.48-1.48 3.75 3.75 3.75-3.75 1.48 1.48-3.75 3.75z"></path></svg>
+        <span class="select-menu-title">Switch branches/tags</span>
+      </div>
+
+      <div class="select-menu-filters">
+        <div class="select-menu-text-filter">
+          <input type="text" aria-label="Filter branches/tags" id="context-commitish-filter-field" class="form-control js-filterable-field js-navigation-enable" placeholder="Filter branches/tags">
+        </div>
+        <div class="select-menu-tabs">
+          <ul>
+            <li class="select-menu-tab">
+              <a href="#" data-tab-filter="branches" data-filter-placeholder="Filter branches/tags" class="js-select-menu-tab" role="tab">Branches</a>
+            </li>
+            <li class="select-menu-tab">
+              <a href="#" data-tab-filter="tags" data-filter-placeholder="Find a tag…" class="js-select-menu-tab" role="tab">Tags</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="select-menu-list select-menu-tab-bucket js-select-menu-tab-bucket" data-tab-filter="branches" role="menu">
+
+        <div data-filterable-for="context-commitish-filter-field" data-filterable-type="substring">
+
+
+            <a class="select-menu-item js-navigation-item js-navigation-open selected"
+               href="/picsoung/talks/blob/master/awsLoftLondon/README.md"
+               data-name="master"
+               data-skip-pjax="true"
+               rel="nofollow">
+              <svg aria-hidden="true" class="octicon octicon-check select-menu-item-icon" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M12 5L4 13 0 9l1.5-1.5 2.5 2.5 6.5-6.5 1.5 1.5z"></path></svg>
+              <span class="select-menu-item-text css-truncate-target js-select-menu-filter-text" title="master">
+                master
+              </span>
+            </a>
+            <a class="select-menu-item js-navigation-item js-navigation-open "
+               href="/picsoung/talks/blob/nico/awsLoftLondon/README.md"
+               data-name="nico"
+               data-skip-pjax="true"
+               rel="nofollow">
+              <svg aria-hidden="true" class="octicon octicon-check select-menu-item-icon" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M12 5L4 13 0 9l1.5-1.5 2.5 2.5 6.5-6.5 1.5 1.5z"></path></svg>
+              <span class="select-menu-item-text css-truncate-target js-select-menu-filter-text" title="nico">
+                nico
+              </span>
+            </a>
+        </div>
+
+          <div class="select-menu-no-results">Nothing to show</div>
+      </div>
+
+      <div class="select-menu-list select-menu-tab-bucket js-select-menu-tab-bucket" data-tab-filter="tags">
+        <div data-filterable-for="context-commitish-filter-field" data-filterable-type="substring">
+
+
+        </div>
+
+        <div class="select-menu-no-results">Nothing to show</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+  <div class="btn-group right">
+    <a href="/picsoung/talks/find/master"
+          class="js-pjax-capture-input btn btn-sm"
+          data-pjax
+          data-hotkey="t">
+      Find file
+    </a>
+    <button aria-label="Copy file path to clipboard" class="js-zeroclipboard btn btn-sm zeroclipboard-button tooltipped tooltipped-s" data-copied-hint="Copied!" type="button">Copy path</button>
+  </div>
+  <div class="breadcrumb js-zeroclipboard-target">
+    <span class="repo-root js-repo-root"><span class="js-path-segment"><a href="/picsoung/talks"><span>talks</span></a></span></span><span class="separator">/</span><span class="js-path-segment"><a href="/picsoung/talks/tree/master/awsLoftLondon"><span>awsLoftLondon</span></a></span><span class="separator">/</span><strong class="final-path">README.md</strong>
+  </div>
+</div>
+
+
+  <div class="commit-tease">
+      <span class="right">
+        <a class="commit-tease-sha" href="/picsoung/talks/commit/64cceed9bbbf5c07bdac3c12e5151ca93307b453" data-pjax>
+          64cceed
+        </a>
+        <relative-time datetime="2016-04-20T10:38:01Z">Apr 20, 2016</relative-time>
+      </span>
+      <div>
+        <img alt="@ManfredBo" class="avatar" height="20" src="https://avatars1.githubusercontent.com/u/6180076?v=3&amp;s=40" width="20" />
+        <a href="/ManfredBo" class="user-mention" rel="contributor">ManfredBo</a>
+          <a href="/picsoung/talks/commit/64cceed9bbbf5c07bdac3c12e5151ca93307b453" class="message" data-pjax="true" title="testing intra page links v4">testing intra page links v4</a>
+      </div>
+
+    <div class="commit-tease-contributors">
+      <button type="button" class="btn-link muted-link contributors-toggle" data-facebox="#blob_contributors_box">
+        <strong>2</strong>
+         contributors
+      </button>
+          <a class="avatar-link tooltipped tooltipped-s" aria-label="ManfredBo" href="/picsoung/talks/commits/master/awsLoftLondon/README.md?author=ManfredBo"><img alt="@ManfredBo" class="avatar" height="20" src="https://avatars1.githubusercontent.com/u/6180076?v=3&amp;s=40" width="20" /> </a>
+    <a class="avatar-link tooltipped tooltipped-s" aria-label="picsoung" href="/picsoung/talks/commits/master/awsLoftLondon/README.md?author=picsoung"><img alt="@picsoung" class="avatar" height="20" src="https://avatars1.githubusercontent.com/u/172072?v=3&amp;s=40" width="20" /> </a>
+
+
+    </div>
+
+    <div id="blob_contributors_box" style="display:none">
+      <h2 class="facebox-header" data-facebox-id="facebox-header">Users who have contributed to this file</h2>
+      <ul class="facebox-user-list" data-facebox-id="facebox-description">
+          <li class="facebox-user-list-item">
+            <img alt="@ManfredBo" height="24" src="https://avatars3.githubusercontent.com/u/6180076?v=3&amp;s=48" width="24" />
+            <a href="/ManfredBo">ManfredBo</a>
+          </li>
+          <li class="facebox-user-list-item">
+            <img alt="@picsoung" height="24" src="https://avatars3.githubusercontent.com/u/172072?v=3&amp;s=48" width="24" />
+            <a href="/picsoung">picsoung</a>
+          </li>
+      </ul>
+    </div>
+  </div>
+
+<div class="file">
+  <div class="file-header">
+  <div class="file-actions">
+
+    <div class="btn-group">
+      <a href="/picsoung/talks/raw/master/awsLoftLondon/README.md" class="btn btn-sm " id="raw-url">Raw</a>
+        <a href="/picsoung/talks/blame/master/awsLoftLondon/README.md" class="btn btn-sm js-update-url-with-hash">Blame</a>
+      <a href="/picsoung/talks/commits/master/awsLoftLondon/README.md" class="btn btn-sm " rel="nofollow">History</a>
+    </div>
+
+
+        <button type="button" class="btn-octicon disabled tooltipped tooltipped-nw"
+          aria-label="You must be signed in to make or propose changes">
+          <svg aria-hidden="true" class="octicon octicon-pencil" height="16" version="1.1" viewBox="0 0 14 16" width="14"><path d="M0 12v3h3l8-8-3-3L0 12z m3 2H1V12h1v1h1v1z m10.3-9.3l-1.3 1.3-3-3 1.3-1.3c0.39-0.39 1.02-0.39 1.41 0l1.59 1.59c0.39 0.39 0.39 1.02 0 1.41z"></path></svg>
+        </button>
+        <button type="button" class="btn-octicon btn-octicon-danger disabled tooltipped tooltipped-nw"
+          aria-label="You must be signed in to make or propose changes">
+          <svg aria-hidden="true" class="octicon octicon-trashcan" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M10 2H8c0-0.55-0.45-1-1-1H4c-0.55 0-1 0.45-1 1H1c-0.55 0-1 0.45-1 1v1c0 0.55 0.45 1 1 1v9c0 0.55 0.45 1 1 1h7c0.55 0 1-0.45 1-1V5c0.55 0 1-0.45 1-1v-1c0-0.55-0.45-1-1-1z m-1 12H2V5h1v8h1V5h1v8h1V5h1v8h1V5h1v9z m1-10H1v-1h9v1z"></path></svg>
+        </button>
+  </div>
+
+  <div class="file-info">
+      289 lines (199 sloc)
+      <span class="file-info-divider"></span>
+    15.9 KB
+  </div>
+</div>
+
+  
+  <div id="readme" class="readme blob instapaper_body">
+    <article class="markdown-body entry-content" itemprop="text"><h1><a id="user-content-aws-pop-up-loft-workshop" class="anchor" href="#aws-pop-up-loft-workshop" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>AWS Pop-up Loft Workshop</h1>
+
+<h1><a id="user-content-designing-and-managing-scalable-apis-with-aws-and-3scale" class="anchor" href="#designing-and-managing-scalable-apis-with-aws-and-3scale" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Designing and managing scalable APIs with AWS and 3scale</h1>
+
+<p>This workshop is jointly delivered between Amazon Web Services (AWS) and the AWS Advanced Technology partner 3scale API Management Platform. Together we provide a full complement API program management solution that integrates 3scale with the Amazon API Gateway and Lambda.</p>
+
+<p>The workshop is held at the AWS Pop-up Loft London on April 25th, 9:00AM - 1:00PM. The workshop description can be found <a href="https://awsloft.london/session/2016/fd3f2e85-b292-44cd-867d-2c0528cbd741">here</a>.</p>
+
+<p>This part of the tutorial focuses on how the <a href="https://www.3scale.net/amazon-gateway-integration/">integration</a> between 3scale, Amazon API Gateway and Lambda can be achieved practically.</p>
+
+<h2><a id="user-content-table-of-contents" class="anchor" href="#table-of-contents" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Table of Contents</h2>
+
+<ul>
+<li>Intro to <a href="https://www.3scale.net/">3scale</a> API Management <a href="#goals">Link to goals</a></li>
+<li>Goals of this tutorial</li>
+<li>Prerequisites for this tutorial</li>
+<li>Setting up the Amazon Virtual Private Cloud (VPC)</li>
+<li>Setting up Elasticache</li>
+<li>Creating the Lambda code</li>
+<li>Intro to the Amazon API Gateway <a href="http://docs.aws.amazon.com/apigateway/latest/developerguide/use-custom-authorizer.html#api-gateway-custom-authorization-overview">custom authorizer</a> principles</li>
+<li>Create and deploy the 3scale-specific custom authorizer</li>
+</ul>
+
+<h2><a id="user-content-intro-to-3scale-api-management" class="anchor" href="#intro-to-3scale-api-management" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Intro to 3scale API Management</h2>
+
+<p>3scale makes it easy to open, secure, manage, distribute, control, and monetize your APIs. Built with performance, customer control and excellent time-to-value in mind, no other solution gives API providers so much power, ease, flexibility and scalability in such a cost effective way. Check it out at <a href="https://www.3scale.net">https://www.3scale.net</a></p>
+
+<p>3scale’s API Management Platform also supports the unique requirements of delivering APIs on the Amazon Web Services (AWS) infrastructure stack -- fexibly, at scale and with great RoI. API providers on AWS don’t have to switch solutions to get Amazon API gateway features like distributed denial-of-service (DDoS) attack protection, caching and logging. Plus, adding 3scale provides rich, sophisticated API management business operations for fine-grained API control and visibility, as well as features for API adoption and promotion. Check out the details about this <a href="https://www.3scale.net/amazon-gateway-integration/">integrated solution</a>.</p>
+
+<p><a name="user-content-goals"></a></p>
+
+<h2><a id="user-content-goals-of-this-tutorial" class="anchor" href="#goals-of-this-tutorial" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Goals of this tutorial</h2>
+
+<p>You've seen the importance of API management when you are developing and exposing APIs. In this tutorial we will show how to add an API management layer to your existing API. </p>
+
+<p>For this tutorial you will use:</p>
+
+<ul>
+<li>Amazon API Gateway: for basic API traffic management</li>
+<li>AWS Lambda: for implementing the logic behind your API</li>
+<li>Elasticache: for caching API keys and improving performance</li>
+<li>VPC: for connecting AWS Lambda with Elasticache</li>
+<li>Serverless framework: for making configuration and deployment to Lambda a lot easier</li>
+<li>3scale API management platform for API contracts on tiered application plans, monetization, and developer portals with interactive API documentation</li>
+</ul>
+
+<p>Below are two overview diagrams that describe the various components involved and their interactions. The first diagram shows what happens when a certain API endpoint is called for the first time togehter with a certain API key.</p>
+
+<p><a href="https://raw.githubusercontent.com/ManfredBo/talks/master/awsLoftLondon/img/AAG-Custom-Authorizer-FirstCall.PNG" target="_blank"><img src="https://raw.githubusercontent.com/ManfredBo/talks/master/awsLoftLondon/img/AAG-Custom-Authorizer-FirstCall.PNG" alt="3scale Custom Authorizer FirstCall" style="max-width:100%;"></a></p>
+
+<p>Here is the flow for the first call:</p>
+
+<ol>
+<li>Amazon API Gateway checks the 3scale custom authorizer if this call is authorized.</li>
+<li>The 3scale custom authorizer checks if the authorization info is stored in the cache.</li>
+<li>Since it is the first call, there is no info stored in the cache. So, the 3scale custom authorizer queries the 3scale API Management platform, which returns whether this call is authorized or not.</li>
+<li>The 3scale custom authorizer updates the cache accordingly.</li>
+<li>The 3scale custom authorizer returns the authorization response to the Amazon API Gateway.</li>
+<li>If the call was positively authorized, the Amazon API Gateway directly queries the API backend, which in our case is a Lambda function. </li>
+</ol>
+
+<p>The second diagram below shows what happens at every subsequent request to the same  API endpoint with the same API key.</p>
+
+<p><a href="https://raw.githubusercontent.com/ManfredBo/talks/master/awsLoftLondon/img/AAG-Custom-Authorizer-SubsequentCalls.PNG" target="_blank"><img src="https://raw.githubusercontent.com/ManfredBo/talks/master/awsLoftLondon/img/AAG-Custom-Authorizer-SubsequentCalls.PNG" alt="3scale Custom Authorizer SubsequentCalls" style="max-width:100%;"></a></p>
+
+<p>Here is the flow for every subsequent call: </p>
+
+<ol>
+<li>Amazon API Gateway checks the 3scale custom authorizer if this call is authorized.</li>
+<li>The 3scale custom authorizer checks if the authorization info is stored in the cache. Since other calls have previously been executed, the cache has the authorization info stored. </li>
+<li>The 3scale custom authorizer returns the authorization response to the Amazon API Gateway.</li>
+<li>If the call was positively authorized, the Amazon API Gateway directly queries the API backend, which in our case is a Lambda function. </li>
+<li>The 3scale custom authorizer calls the 3scale Async Reporting Function.</li>
+<li>The 3scale Async Reporting Function reports the traffic back to the 3scale API Management platform, which is used for API analytics. </li>
+</ol>
+
+<h2><a id="user-content-prerequisites-for-this-tutorial" class="anchor" href="#prerequisites-for-this-tutorial" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Prerequisites for this tutorial</h2>
+
+<ul>
+<li>3scale account -- sign up at <a href="https://www.3scale.net/">3scale.net</a> <code>TODO: add specific signup URL landing page</code></li>
+<li>AWS account -- sign up at <a href="http://aws.amazon.com">http://aws.amazon.com</a></li>
+<li>AWS command line interface (CLI) installed locally -- (<a href="http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html">Instructions</a>)</li>
+<li>Node.js environment installed locally -- (<a href="https://docs.npmjs.com/getting-started/installing-node">Instructions</a>)</li>
+<li>Serverless framework installed locally -- (<a href="https://github.com/serverless/serverless">Instructions</a>)</li>
+</ul>
+
+<h2><a id="user-content-intro-to-the-amazon-api-gateway-custom-authorizer-principles" class="anchor" href="#intro-to-the-amazon-api-gateway-custom-authorizer-principles" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Intro to the Amazon API Gateway custom authorizer principles</h2>
+
+<p>With the Amazon API Gateway custom authorizer, you can control access to your APIs using bearer token authentication strategies, such as OAuth or SAML. To do so, you provide and configure a custom authorizer (basically your own Lambda function) for the Amazon API Gateway, which is then used to authorize the client requests for the configured APIs. You can find all the details how to do this in a dedicated Amazon API Gateway <a href="http://docs.aws.amazon.com/apigateway/latest/developerguide/use-custom-authorizer.html">tutorial</a>.</p>
+
+<p>In the next section, we describe the our custom authorizer that we wrote to authorize API calls against the 3scale API Management platform.</p>
+
+<h2><a id="user-content-create-and-deploy-the-3scale-specific-custom-authorizer" class="anchor" href="#create-and-deploy-the-3scale-specific-custom-authorizer" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Create and deploy the 3scale-specific custom authorizer</h2>
+
+<p><code>TODO: Nico</code></p>
+
+<h2><a id="user-content-optional-create-an-api-and-deployed-it-do-aws-api-gateway" class="anchor" href="#optional-create-an-api-and-deployed-it-do-aws-api-gateway" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>(optional) Create an API and deployed it do AWS API gateway</h2>
+
+<p>If you don't have an API deployed on API gateway you can create one very easily using Serverless.</p>
+
+<p>First create a project <code>sls create project</code>
+then create a function <code>sls function create greetings</code>
+this will create a <code>greetings</code> folder.
+To see the result of an API call you can run locally <code>sls function run</code>.</p>
+
+<p>Finally you can deploy this endpoint using <code>sls dash deploy</code> command.
+We will use this API during the rest of our tutorial.</p>
+
+<h2><a id="user-content-setting-up-the-amazon-virtual-private-cloud-vpc" class="anchor" href="#setting-up-the-amazon-virtual-private-cloud-vpc" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Setting up the Amazon Virtual Private Cloud (VPC)</h2>
+
+<p>To reduce latency and have an API stack that is capable of handling the load of thousands of requests, we will use <a href="https://aws.amazon.com/elasticache/">Amazon Elasticache</a>. There we will store API keys that were authorized to make request to the API. This will help reducing the number of calls to the main 3scale platform and consequently improve the overall API stack performance.</p>
+
+<p>Elasticache is only available through VPC. To be able to call Elasticache into Lambda, the Lambda function has to be on the same VPC.</p>
+
+<p>Our Lambda will make calls to 3scale service, which is outside of the VPC. We will now configure the VPC to make sure it can connect to the internet, outside of VPC.</p>
+
+<p>If don't have a VPC, let's create one. You can also use the default one.</p>
+
+<p>You should create a NAT gateway and an Internet gateway.
 Then create a new route tables.
 Once the route table is created let's edit the routes.
-You should make `0.0.0.0/0` point to the NAT gateway you created.
+You should make <code>0.0.0.0/0</code> point to the NAT gateway you created.</p>
 
-We will now attach this rule to a subnet in your VPC. Select an existing subnet. On the route tables tab, select the route table you just created.
+<p>We will now attach this rule to a subnet in your VPC. Select an existing subnet. On the route tables tab, select the route table you just created.</p>
 
-And that's it for the VPC part. You know have a VPC, that's know connected to the Internet. We will see later how to put Elasticache and Lambda on this VPC.
+<p>And that's it for the VPC part. You know have a VPC, that's know connected to the Internet. We will see later how to put Elasticache and Lambda on this VPC.</p>
 
-##Setting up Elasticache
-Elasticache is a service offered by AWS to simply cache stuff and access it quickly. It supports both Memcached and Redis. In our example we will use Redis.
+<h2><a id="user-content-setting-up-elasticache" class="anchor" href="#setting-up-elasticache" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Setting up Elasticache</h2>
 
-Go on Elasticache section in your AWS console and create a Redis cluster under the VPC you defined before. You don't specially need replication for this tutorial.
+<p>Elasticache is a service offered by AWS to simply cache stuff and access it quickly. It supports both Memcached and Redis. In our example we will use Redis.</p>
+
+<p>Go on Elasticache section in your AWS console and create a Redis cluster under the VPC you defined before. You don't specially need replication for this tutorial.
 There is no more setup to do on the Elasticache cluster.
-Once the cluster is ready, go on the node created, and get the Endpoint URL. We will need it later on in the tutorial.
+Once the cluster is ready, go on the node created, and get the Endpoint URL. We will need it later on in the tutorial.</p>
 
-##Creating the Lambda code
-We will now work on the Lambda side of the integration. This is where the logic of the custom authorizer will be defined.
-This Lambda function will call 3scale to authorize access to the API.
+<h2><a id="user-content-creating-the-lambda-code" class="anchor" href="#creating-the-lambda-code" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Creating the Lambda code</h2>
 
-We will be using Serverless framework to deploy Lambda functions easily. If you are not familiar with it, check their [site](http://serverless.com).
-It's basically a tool that helps you manage Lambda functions easily.
+<p>We will now work on the Lambda side of the integration. This is where the logic of the custom authorizer will be defined.
+This Lambda function will call 3scale to authorize access to the API.</p>
 
-Clone [this repo](https://github.com/picsoung/awsThreeScale_Authorizer) locally
+<p>We will be using Serverless framework to deploy Lambda functions easily. If you are not familiar with it, check their <a href="http://serverless.com">site</a>.
+It's basically a tool that helps you manage Lambda functions easily.</p>
 
-```
-git clone https://github.com/picsoung/awsThreeScale_Authorizer
+<p>Clone <a href="https://github.com/picsoung/awsThreeScale_Authorizer">this repo</a> locally</p>
+
+<pre><code>git clone https://github.com/picsoung/awsThreeScale_Authorizer
 cd awsThreeScale_Authorizer
-```
+</code></pre>
 
-In `awsThreeScale_Authorizer` folder you will see two different folders, they represent the two Lambda function we are going to use.
-`authorizer` is the function that will be called by the API Gateway to authorize incoming API calls.
-`authrepAsync` will be called by `authorizer` function to sync cache with 3scale servers.
+<p>In <code>awsThreeScale_Authorizer</code> folder you will see two different folders, they represent the two Lambda function we are going to use.
+<code>authorizer</code> is the function that will be called by the API Gateway to authorize incoming API calls.
+<code>authrepAsync</code> will be called by <code>authorizer</code> function to sync cache with 3scale servers.</p>
 
-Before deploying this to AWS we need to do few more steps.
+<p>Before deploying this to AWS we need to do few more steps.</p>
 
-At the root `awsThreeScale_Authorizer` and on each function folders run `npm install` command. This will install all the NPM plugins needed.
+<p>At the root <code>awsThreeScale_Authorizer</code> and on each function folders run <code>npm install</code> command. This will install all the NPM plugins needed.</p>
 
-The logic of each Lambda is happening on `handler.js` file but we should have to touch it. If you look at the code in this file you may see that we are using environemment variables.
-Let's setup them.
+<p>The logic of each Lambda is happening on <code>handler.js</code> file but we should have to touch it. If you look at the code in this file you may see that we are using environemment variables.
+Let's setup them.</p>
 
-In `authorizer` and `authrepAsync` folders:
+<p>In <code>authorizer</code> and <code>authrepAsync</code> folders:</p>
 
-Open `s-function_example.js` file and rename it `s-function.js`
-Then under `environment` property change the placeholder values for THREESCALE and ELASTICACHE
+<p>Open <code>s-function_example.js</code> file and rename it <code>s-function.js</code>
+Then under <code>environment</code> property change the placeholder values for THREESCALE and ELASTICACHE</p>
 
-```
-"environment": {
+<pre><code>"environment": {
   "SERVERLESS_PROJECT": "${project}",
   "SERVERLESS_STAGE": "${stage}",
   "SERVERLESS_REGION": "${region}",
@@ -117,27 +615,223 @@ Then under `environment` property change the placeholder values for THREESCALE a
   "ELASTICACHE_ENDPOINT":"YOUR_ELASTICACHE_ENDPOINT",
   "ELASTICACHE_PORT":6379
 },
-```
+</code></pre>
 
-You can find your 3scale provider key, under `Accounts` in your 3scale account.
+<p>You can find your 3scale provider key, under <code>Accounts</code> in your 3scale account.</p>
 
-[Screenshot] 
+<p>[Screenshot]</p>
 
-Service ID could be found under `APIs`
-[screenshot]
+<p>Service ID could be found under <code>APIs</code>
+[screenshot]</p>
 
-To find the Elastic Enpoingt, go on your AWS console and click on the cluster you have created before. You should see the endpoint URL.
+<p>To find the Elastic Enpoint, go on your AWS console and click on the cluster you have created before. You should see the endpoint URL.</p>
 
-[screenshot]
+<p>[screenshot]</p>
 
-In the `s-function.json` file for `authorizer function` you may see a `SNS_TOPIC_ARN` property. Leave it like it it for now, we will come back to it later.
+<p>In the <code>s-function.json</code> file for <code>authorizer function</code> you may see a <code>SNS_TOPIC_ARN</code> property. Leave it like it it for now, we will come back to it later.</p>
+
+<p>In the <code>s-function.json</code> you should have seen a <code>vpc</code> section too. In both files replace it with the securitygroup and the subnets we have created before.
+The VPC section should look like this now:</p>
+
+<pre><code>"vpc": {
+    "securityGroupIds": ["ID_OF_SECURITY_GROUP"],
+    "subnetIds": ["ID_OF_SUBNET","ID_OF_ANOTHER_SUBNET"]
+  }
+</code></pre>
+
+<p>This part of the configuration assigns a VPC to the Lambda function, so it can communicate with Elasticcache.</p>
+
+<p>We are now done with the settings of our Lambda functions. We can now deploy them using the <code>sls dash deploy</code> command.
+you can select both functions and then select deploy</p>
+
+<p>[screenshot]</p>
+
+<h2><a id="user-content-add-custom-authorizer-to-api-gateway" class="anchor" href="#add-custom-authorizer-to-api-gateway" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Add custom authorizer to API Gateway</h2>
+
+<p>We are now going to add the custom authorizer functions we just deployed to our existing API on the API Gateway.</p>
+
+<p>To do so: go to the API Gateway console and select your API. You should see a section named <code>Custom Authorizers</code> on the left menu. Click on it.</p>
+
+<p>Click on <code>Create</code> button to create your custom authorizer.
+Name it <code>threescale</code>, choose the region where your Lambda has been deployed, and look for the authorizer function you have deployed earlier.</p>
+
+<p>Under <code>Identify token source</code> modify it to <code>method.request.header.apikey</code>. It means that we are expecting developers to make a call to our API with a header <code>apikey</code>, and we will use this key to authenticate the request.
+Finally change TTL to 0. The authorizer is already handling caching.</p>
+
+<p>We now have a custom authorizer. We now have to apply it to our API endpoints.</p>
+
+<p>Go on the <code>Resources</code> part of your API.
+Select a method, and click on the <code>method request</code> box.
+There you should change <code>Authorization</code> to the custom authorizer you have created before.
+Once you are done, save, and re-deploy your API.</p>
+
+<p>You would have to reproduce these steps on each endpoint of your API to make sure all your API is secured. But for now we can limit it to a simple endpoint.</p>
+
+<h2><a id="user-content-test-integration" class="anchor" href="#test-integration" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Test integration</h2>
+
+<p>You are almost done!
+We now need to test that everything worked as planned.</p>
+
+<p>You need to go to your 3scale account to find a valid API key.
+Once you are in your 3scale dashboard go under <code>Developers</code> section and click on the default account.
+There you should see all the details about this developer account and the details of his applications.
+Click on the name of one of his applications.</p>
+
+<p>[Screenshot]</p>
+
+<p>On the next screen you see details of this application like on which plan it is, the traffic over the 30 days.
+We can look at those features later, now we are only interested by the <code>User Key</code>, copy it.</p>
+
+<p>We will now make a call to your API on the endpoint where we setup the custom authorizer using the API key we got from 3scale to authenticate ourselves.</p>
+
+<p>Open a Terminal command an run the following command</p>
+
+<p>curl -X http://YOUR_API_GATEWAY_URL/YOURENDPOINT \
+    -H 'apikey: 3SCALE_API_KEY'</p>
+
+<p>If all worked as planned you should see the result of your API call.
+Now let's try with a non valid Key, replace the key with any random string.
+See? It does not work.</p>
+
+<p>Your API is now protected and only accessible to people with an API key.</p>
+
+<h2><a id="user-content-finishing-up-integration-using-sns" class="anchor" href="#finishing-up-integration-using-sns" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Finishing up integration using SNS</h2>
+
+<p>The Authorizer function will be called every time a request comes on the API Gateway. We don't want to have to call 3scale every time to check if key is authorized or not.
+That's where Elasticache will become handy.
+The first time we see an API key we will ask 3scale to authorize it. We then store the result in cache so we can serve it next time the key is making another call.
+We will then use the <code>authRepAsync</code> function to sync cache with the 3scale platform.</p>
+
+<p>This <code>authRepAsync</code> function will be called by the main authorizer function using SNS protocol.
+SNS is a notifications protocol available AWS. Lambda functions could subscribe to a specific topic. And every time a message is sent on this topic the Lambda function will be triggered.</p>
+
+<h3><a id="user-content-create-a-sns-topic" class="anchor" href="#create-a-sns-topic" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Create a SNS topic</h3>
+
+<p>In your AWS console, go under SNS service.
+Create a new topic name it <code>threescaleAsync</code>.
+Once created click on this new topic.</p>
+
+<p>There click create subscription button.
+Select <code>AWS Lambda</code> as protocol.
+Find the <code>authRepAsync</code> function in the endpoint menu.
+And keep <code>default</code> as a version.</p>
+
+<p>Now, we have <code>authRepAsync</code> Lambda that has subscribed to this topic. Copy the ARN of this topic.</p>
+
+<h3><a id="user-content-attach-policy-to-lambda-function" class="anchor" href="#attach-policy-to-lambda-function" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Attach policy to Lambda function</h3>
+
+<p>To be able to send SNS message to a topic a Lambda needs to have the correct policy.
+You could achieve that adding the following policy</p>
+
+<pre><code>{
+    "Effect": "Allow",
+    "Action": [
+        "sns:Publish"
+    ],
+    "Resource": [
+        "YOUR_SNS_TOPIC_ARN"
+    ]              
+}
+</code></pre>
+
+<p>at the root of your project under in the <code>s-ressources-cf.json</code> file.</p>
+
+<h3><a id="user-content-send-sns-message-to-this-topic" class="anchor" href="#send-sns-message-to-this-topic" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M4 9h1v1h-1c-1.5 0-3-1.69-3-3.5s1.55-3.5 3-3.5h4c1.45 0 3 1.69 3 3.5 0 1.41-0.91 2.72-2 3.25v-1.16c0.58-0.45 1-1.27 1-2.09 0-1.28-1.02-2.5-2-2.5H4c-0.98 0-2 1.22-2 2.5s1 2.5 2 2.5z m9-3h-1v1h1c1 0 2 1.22 2 2.5s-1.02 2.5-2 2.5H9c-0.98 0-2-1.22-2-2.5 0-0.83 0.42-1.64 1-2.09v-1.16c-1.09 0.53-2 1.84-2 3.25 0 1.81 1.55 3.5 3 3.5h4c1.45 0 3-1.69 3-3.5s-1.5-3.5-3-3.5z"></path></svg></a>Send SNS message to this topic</h3>
+
+<p>In your Serverless code it's time to update the <code>s-function.json</code> file for <code>authorizer</code> function.
+There replace on the line <code>"SNS_TOPIC_ARN":"YOUR_SNS_TOPIC"</code>
+replace <code>YOUR_SNS_TOPIC</code> by the ARN of the SNS topic you just created.</p>
+
+<p>Check in the <code>handler.js</code> file how we are sending the message.</p>
+
+<p>You can now redeploy your function. Caching should work.
+To see if it works you can look at the logs of the <code>authRepAsync</code> function.</p>
+</article>
+  </div>
+
+</div>
+
+<button type="button" data-facebox="#jump-to-line" data-facebox-class="linejump" data-hotkey="l" class="hidden">Jump to Line</button>
+<div id="jump-to-line" style="display:none">
+  <!-- </textarea> --><!-- '"` --><form accept-charset="UTF-8" action="" class="js-jump-to-line-form" method="get"><div style="margin:0;padding:0;display:inline"><input name="utf8" type="hidden" value="&#x2713;" /></div>
+    <input class="form-control linejump-input js-jump-to-line-field" type="text" placeholder="Jump to line&hellip;" aria-label="Jump to line" autofocus>
+    <button type="submit" class="btn">Go</button>
+</form></div>
+
+  </div>
+  <div class="modal-backdrop"></div>
+</div>
+
+
+    </div>
+  </div>
+
+    </div>
+
+        <div class="container site-footer-container">
+  <div class="site-footer" role="contentinfo">
+    <ul class="site-footer-links right">
+        <li><a href="https://status.github.com/" data-ga-click="Footer, go to status, text:status">Status</a></li>
+      <li><a href="https://developer.github.com" data-ga-click="Footer, go to api, text:api">API</a></li>
+      <li><a href="https://training.github.com" data-ga-click="Footer, go to training, text:training">Training</a></li>
+      <li><a href="https://shop.github.com" data-ga-click="Footer, go to shop, text:shop">Shop</a></li>
+        <li><a href="https://github.com/blog" data-ga-click="Footer, go to blog, text:blog">Blog</a></li>
+        <li><a href="https://github.com/about" data-ga-click="Footer, go to about, text:about">About</a></li>
+
+    </ul>
+
+    <a href="https://github.com" aria-label="Homepage" class="site-footer-mark">
+      <svg aria-hidden="true" class="octicon octicon-mark-github" height="24" title="GitHub " version="1.1" viewBox="0 0 16 16" width="24"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59 0.4 0.07 0.55-0.17 0.55-0.38 0-0.19-0.01-0.82-0.01-1.49-2.01 0.37-2.53-0.49-2.69-0.94-0.09-0.23-0.48-0.94-0.82-1.13-0.28-0.15-0.68-0.52-0.01-0.53 0.63-0.01 1.08 0.58 1.23 0.82 0.72 1.21 1.87 0.87 2.33 0.66 0.07-0.52 0.28-0.87 0.51-1.07-1.78-0.2-3.64-0.89-3.64-3.95 0-0.87 0.31-1.59 0.82-2.15-0.08-0.2-0.36-1.02 0.08-2.12 0 0 0.67-0.21 2.2 0.82 0.64-0.18 1.32-0.27 2-0.27 0.68 0 1.36 0.09 2 0.27 1.53-1.04 2.2-0.82 2.2-0.82 0.44 1.1 0.16 1.92 0.08 2.12 0.51 0.56 0.82 1.27 0.82 2.15 0 3.07-1.87 3.75-3.65 3.95 0.29 0.25 0.54 0.73 0.54 1.48 0 1.07-0.01 1.93-0.01 2.2 0 0.21 0.15 0.46 0.55 0.38C13.71 14.53 16 11.53 16 8 16 3.58 12.42 0 8 0z"></path></svg>
+</a>
+    <ul class="site-footer-links">
+      <li>&copy; 2016 <span title="0.04818s from github-fe126-cp1-prd.iad.github.net">GitHub</span>, Inc.</li>
+        <li><a href="https://github.com/site/terms" data-ga-click="Footer, go to terms, text:terms">Terms</a></li>
+        <li><a href="https://github.com/site/privacy" data-ga-click="Footer, go to privacy, text:privacy">Privacy</a></li>
+        <li><a href="https://github.com/security" data-ga-click="Footer, go to security, text:security">Security</a></li>
+        <li><a href="https://github.com/contact" data-ga-click="Footer, go to contact, text:contact">Contact</a></li>
+        <li><a href="https://help.github.com" data-ga-click="Footer, go to help, text:help">Help</a></li>
+    </ul>
+  </div>
+</div>
 
 
 
+    
+    
 
-##Intro to the Amazon API Gateway custom authorizer principles
-`TODO`
+    <div id="ajax-error-message" class="ajax-error-message flash flash-error">
+      <svg aria-hidden="true" class="octicon octicon-alert" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M15.72 12.5l-6.85-11.98C8.69 0.21 8.36 0.02 8 0.02s-0.69 0.19-0.87 0.5l-6.85 11.98c-0.18 0.31-0.18 0.69 0 1C0.47 13.81 0.8 14 1.15 14h13.7c0.36 0 0.69-0.19 0.86-0.5S15.89 12.81 15.72 12.5zM9 12H7V10h2V12zM9 9H7V5h2V9z"></path></svg>
+      <button type="button" class="flash-close js-flash-close js-ajax-error-dismiss" aria-label="Dismiss error">
+        <svg aria-hidden="true" class="octicon octicon-x" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M7.48 8l3.75 3.75-1.48 1.48-3.75-3.75-3.75 3.75-1.48-1.48 3.75-3.75L0.77 4.25l1.48-1.48 3.75 3.75 3.75-3.75 1.48 1.48-3.75 3.75z"></path></svg>
+      </button>
+      Something went wrong with that request. Please try again.
+    </div>
 
 
-##Create and deploy the 3scale-specific custom authorizer
-`TODO`
+      <script crossorigin="anonymous" src="https://assets-cdn.github.com/assets/compat-7db58f8b7b91111107fac755dd8b178fe7db0f209ced51fc339c446ad3f8da2b.js"></script>
+      <script crossorigin="anonymous" src="https://assets-cdn.github.com/assets/frameworks-d5718785472b2052449a0eddf71fd732bfe0f81a8b3f28b953568f88c36eedb3.js"></script>
+      <script async="async" crossorigin="anonymous" src="https://assets-cdn.github.com/assets/github-d6ea8d8c3265ef5d9ec0150d796895d45f8e83b8585a3a180c1e6481078b0c62.js"></script>
+      
+      
+      
+      
+      
+      
+    <div class="js-stale-session-flash stale-session-flash flash flash-warn flash-banner hidden">
+      <svg aria-hidden="true" class="octicon octicon-alert" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path d="M15.72 12.5l-6.85-11.98C8.69 0.21 8.36 0.02 8 0.02s-0.69 0.19-0.87 0.5l-6.85 11.98c-0.18 0.31-0.18 0.69 0 1C0.47 13.81 0.8 14 1.15 14h13.7c0.36 0 0.69-0.19 0.86-0.5S15.89 12.81 15.72 12.5zM9 12H7V10h2V12zM9 9H7V5h2V9z"></path></svg>
+      <span class="signed-in-tab-flash">You signed in with another tab or window. <a href="">Reload</a> to refresh your session.</span>
+      <span class="signed-out-tab-flash">You signed out in another tab or window. <a href="">Reload</a> to refresh your session.</span>
+    </div>
+    <div class="facebox" id="facebox" style="display:none;">
+  <div class="facebox-popup">
+    <div class="facebox-content" role="dialog" aria-labelledby="facebox-header" aria-describedby="facebox-description">
+    </div>
+    <button type="button" class="facebox-close js-facebox-close" aria-label="Close modal">
+      <svg aria-hidden="true" class="octicon octicon-x" height="16" version="1.1" viewBox="0 0 12 16" width="12"><path d="M7.48 8l3.75 3.75-1.48 1.48-3.75-3.75-3.75 3.75-1.48-1.48 3.75-3.75L0.77 4.25l1.48-1.48 3.75 3.75 3.75-3.75 1.48 1.48-3.75 3.75z"></path></svg>
+    </button>
+  </div>
+</div>
+
+  </body>
+</html>
+
